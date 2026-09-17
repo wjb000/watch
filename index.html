@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Nebula OS — interactive browser simulator for Waveshare ESP32-S3-Touch-AMOLED-2.06" />
+  <title>Nebula OS</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0c'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%237c6cff'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1 class="hero-title">Nebula OS</h1>
+      <p class="hero-blurb">A custom smartwatch OS for Waveshare ESP32-S3-Touch-AMOLED-2.06 — try the interactive sim below.</p>
+    </header>
+
+    <div class="watch-stage">
+      <div class="watch-bezel" aria-label="Nebula OS watch simulator">
+        <div class="watch-screen" id="watch-screen">
+          <!-- Status bar (shared overlay on home) -->
+          <div class="status-bar" id="status-bar">
+            <span class="status-time" id="status-time-mini"></span>
+            <div class="status-right">
+              <svg class="icon-wifi" id="icon-wifi" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path fill="currentColor" d="M12 18.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-4.24-3.06a6 6 0 0 1 8.48 0l-1.42 1.42a4 4 0 0 0-5.64 0l-1.42-1.42zm-2.83-2.83a10 10 0 0 1 14.14 0l-1.41 1.41a8 8 0 0 0-11.32 0L4.93 12.61z"/>
+              </svg>
+              <span class="status-batt" id="status-batt">87%</span>
+            </div>
+          </div>
+
+          <!-- Screens stack -->
+          <div class="screen-stack" id="screen-stack">
+
+            <!-- HOME -->
+            <section class="screen screen-home active" id="screen-home" data-screen="home">
+              <div class="home-clock">
+                <div class="home-time" id="home-time">9:41</div>
+                <div class="home-date" id="home-date">Thu, Sep 17</div>
+              </div>
+              <div class="home-meta">
+                <div class="batt-pill">
+                  <span class="batt-dot"></span>
+                  <span id="home-batt">87%</span>
+                </div>
+                <svg class="home-wifi" viewBox="0 0 24 24" width="18" height="18" aria-label="Wi-Fi connected">
+                  <path fill="currentColor" d="M12 18.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-4.24-3.06a6 6 0 0 1 8.48 0l-1.42 1.42a4 4 0 0 0-5.64 0l-1.42-1.42zm-2.83-2.83a10 10 0 0 1 14.14 0l-1.41 1.41a8 8 0 0 0-11.32 0L4.93 12.61z"/>
+                </svg>
+              </div>
+              <div class="nova-stage" id="nova-stage">
+                <div class="nova" id="nova" role="img" aria-label="Nova pet — tap or drag">
+                  <div class="nova-glow"></div>
+                  <svg class="nova-body" viewBox="0 0 120 120" width="120" height="120">
+                    <defs>
+                      <radialGradient id="novaGrad" cx="40%" cy="35%" r="60%">
+                        <stop offset="0%" stop-color="#c4b5ff"/>
+                        <stop offset="55%" stop-color="#7c6cff"/>
+                        <stop offset="100%" stop-color="#4a3db8"/>
+                      </radialGradient>
+                      <radialGradient id="cheekGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#ff8fab" stop-opacity="0.7"/>
+                        <stop offset="100%" stop-color="#ff8fab" stop-opacity="0"/>
+                      </radialGradient>
+                    </defs>
+                    <!-- soft body -->
+                    <ellipse cx="60" cy="64" rx="42" ry="40" fill="url(#novaGrad)"/>
+                    <!-- ears / antenna bumps -->
+                    <circle cx="38" cy="32" r="12" fill="#8b7cff"/>
+                    <circle cx="82" cy="32" r="12" fill="#8b7cff"/>
+                    <circle cx="38" cy="30" r="6" fill="#e8e0ff"/>
+                    <circle cx="82" cy="30" r="6" fill="#e8e0ff"/>
+                    <!-- face -->
+                    <ellipse class="nova-eye left" cx="46" cy="58" rx="7" ry="9" fill="#1a1a22"/>
+                    <ellipse class="nova-eye right" cx="74" cy="58" rx="7" ry="9" fill="#1a1a22"/>
+                    <circle class="nova-shine" cx="48" cy="55" r="2.5" fill="#fff"/>
+                    <circle class="nova-shine" cx="76" cy="55" r="2.5" fill="#fff"/>
+                    <ellipse cx="40" cy="68" rx="8" ry="5" fill="url(#cheekGrad)"/>
+                    <ellipse cx="80" cy="68" rx="8" ry="5" fill="url(#cheekGrad)"/>
+                    <path class="nova-mouth" d="M52 74 Q60 80 68 74" fill="none" stroke="#2a2a35" stroke-width="2.5" stroke-linecap="round"/>
+                    <!-- sparkles -->
+                    <circle class="spark s1" cx="22" cy="50" r="2" fill="#b8a9ff" opacity="0.8"/>
+                    <circle class="spark s2" cx="98" cy="48" r="1.5" fill="#ffe08a" opacity="0.9"/>
+                    <circle class="spark s3" cx="60" cy="22" r="1.8" fill="#fff" opacity="0.7"/>
+                  </svg>
+                  <div class="nova-name">Nova</div>
+                </div>
+              </div>
+              <div class="home-hint">swipe up · tap Nova</div>
+            </section>
+
+            <!-- CONTROL CENTER -->
+            <section class="screen screen-cc" id="screen-cc" data-screen="cc">
+              <div class="cc-grab" aria-hidden="true"><span class="grab-pill"></span></div>
+              <div class="cc-header">
+                <span class="cc-title">Control Center</span>
+                <span class="cc-time" id="cc-time"></span>
+              </div>
+              <div class="cc-sliders">
+                <div class="slider-card">
+                  <div class="slider-label">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5V7zm0-5a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1zm0 16a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1zm9-7a1 1 0 0 1-1 1h-2a1 1 0 1 1 0-2h2a1 1 0 0 1 1 1zM6 12a1 1 0 0 1-1 1H3a1 1 0 1 1 0-2h2a1 1 0 0 1 1 1z"/></svg>
+                    Brightness
+                  </div>
+                  <input type="range" class="slider" id="brightness" min="20" max="100" value="78" />
+                  <div class="slider-track-fill" id="brightness-fill"></div>
+                </div>
+                <div class="slider-card">
+                  <div class="slider-label">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+                    Volume
+                  </div>
+                  <input type="range" class="slider" id="volume" min="0" max="100" value="55" />
+                </div>
+              </div>
+              <div class="cc-tiles">
+                <button type="button" class="cc-tile on" data-toggle="wifi" aria-pressed="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 18.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-4.24-3.06a6 6 0 0 1 8.48 0l-1.42 1.42a4 4 0 0 0-5.64 0l-1.42-1.42zm-2.83-2.83a10 10 0 0 1 14.14 0l-1.41 1.41a8 8 0 0 0-11.32 0L4.93 12.61z"/></svg>
+                  <span>Wi‑Fi</span>
+                </button>
+                <button type="button" class="cc-tile on" data-toggle="bt" aria-pressed="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M17.71 7.71 12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+                  <span>BT</span>
+                </button>
+                <button type="button" class="cc-tile" data-toggle="torch" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M9 2h6v3H9V2zm1 4h4l1 3v11a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V9l1-3zm2 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>
+                  <span>Torch</span>
+                </button>
+                <button type="button" class="cc-tile" id="cc-settings" data-open="settings">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.61 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.49.39 1.03.7 1.62.94l.36 2.54c.04.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+                  <span>Settings</span>
+                </button>
+              </div>
+              <p class="cc-hint">swipe down to close · open launcher ↓</p>
+            </section>
+
+            <!-- LAUNCHER -->
+            <section class="screen screen-launcher" id="screen-launcher" data-screen="launcher">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back="home" aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Apps</span>
+              </div>
+              <div class="app-grid" id="app-grid">
+                <button type="button" class="app-tile" data-open="settings">
+                  <span class="app-icon settings-ico">⚙</span>
+                  <span class="app-label">Settings</span>
+                </button>
+                <button type="button" class="app-tile" data-open="faces">
+                  <span class="app-icon faces-ico">◎</span>
+                  <span class="app-label">Faces</span>
+                </button>
+                <button type="button" class="app-tile" data-open="talk">
+                  <span class="app-icon talk-ico">🎙</span>
+                  <span class="app-label">Talk</span>
+                </button>
+                <button type="button" class="app-tile" data-open="activity">
+                  <span class="app-icon activity-ico">♡</span>
+                  <span class="app-label">Activity</span>
+                </button>
+                <button type="button" class="app-tile" data-open="weather">
+                  <span class="app-icon weather-ico">☁</span>
+                  <span class="app-label">Weather</span>
+                </button>
+                <button type="button" class="app-tile" data-open="timer">
+                  <span class="app-icon timer-ico">⏱</span>
+                  <span class="app-label">Timer</span>
+                </button>
+              </div>
+            </section>
+
+            <!-- SETTINGS -->
+            <section class="screen screen-app" id="screen-settings" data-screen="settings">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Settings</span>
+              </div>
+              <div class="settings-list">
+                <div class="settings-card">
+                  <div class="settings-row">
+                    <span>Display</span>
+                    <span class="muted">AMOLED · 410×502</span>
+                  </div>
+                  <div class="settings-row">
+                    <span>Always On</span>
+                    <label class="switch"><input type="checkbox" id="set-aod" /><span class="switch-ui"></span></label>
+                  </div>
+                  <div class="settings-row">
+                    <span>Haptics</span>
+                    <label class="switch"><input type="checkbox" id="set-haptics" checked /><span class="switch-ui"></span></label>
+                  </div>
+                </div>
+                <div class="settings-card">
+                  <div class="settings-row">
+                    <span>Wi‑Fi</span>
+                    <span class="muted on-dot">Nebula-Net</span>
+                  </div>
+                  <div class="settings-row">
+                    <span>Bluetooth</span>
+                    <span class="muted on-dot">Connected</span>
+                  </div>
+                  <div class="settings-row">
+                    <span>Battery</span>
+                    <span class="muted" id="set-batt">87%</span>
+                  </div>
+                </div>
+                <div class="settings-card">
+                  <div class="settings-row about">
+                    <span>About Nebula OS</span>
+                    <span class="muted">v0.9 · sim</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- FACES -->
+            <section class="screen screen-app" id="screen-faces" data-screen="faces">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Faces</span>
+              </div>
+              <p class="faces-intro">Choose a watchface style</p>
+              <div class="faces-picker">
+                <button type="button" class="face-option selected" data-face="classic" id="face-classic">
+                  <div class="face-preview face-preview-classic">
+                    <div class="fp-time">9:41</div>
+                    <div class="fp-date">Thu</div>
+                    <div class="fp-pet">✦</div>
+                  </div>
+                  <span>Classic Nova</span>
+                </button>
+                <button type="button" class="face-option" data-face="minimal" id="face-minimal">
+                  <div class="face-preview face-preview-minimal">
+                    <div class="fp-ring"></div>
+                    <div class="fp-time-sm">9:41</div>
+                  </div>
+                  <span>Minimal Ring</span>
+                </button>
+              </div>
+              <p class="faces-note" id="faces-note">Active: Classic Nova</p>
+            </section>
+
+            <!-- TALK -->
+            <section class="screen screen-app" id="screen-talk" data-screen="talk">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Talk</span>
+              </div>
+              <div class="talk-body">
+                <p class="talk-prompt" id="talk-prompt">Hold to speak</p>
+                <button type="button" class="mic-btn" id="mic-btn" aria-label="Microphone">
+                  <div class="mic-rings">
+                    <span class="mic-ring r1"></span>
+                    <span class="mic-ring r2"></span>
+                    <span class="mic-ring r3"></span>
+                  </div>
+                  <svg viewBox="0 0 24 24" width="36" height="36"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+                </button>
+                <div class="talk-waveform" id="talk-waveform" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p class="talk-transcript" id="talk-transcript"></p>
+              </div>
+            </section>
+
+            <!-- STUB APPS -->
+            <section class="screen screen-app" id="screen-activity" data-screen="activity">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Activity</span>
+              </div>
+              <div class="stub-body">
+                <div class="stat-ring"><span>6,842</span><small>steps</small></div>
+                <div class="stat-row"><span>Heart</span><span>72 bpm</span></div>
+                <div class="stat-row"><span>Move</span><span>42 min</span></div>
+              </div>
+            </section>
+
+            <section class="screen screen-app" id="screen-weather" data-screen="weather">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Weather</span>
+              </div>
+              <div class="stub-body weather-stub">
+                <div class="weather-temp">72°</div>
+                <div class="weather-desc">Partly cloudy</div>
+                <div class="weather-loc">Chicago</div>
+              </div>
+            </section>
+
+            <section class="screen screen-app" id="screen-timer" data-screen="timer">
+              <div class="nav-bar">
+                <button type="button" class="back-btn" data-back aria-label="Back">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <span class="nav-title">Timer</span>
+              </div>
+              <div class="stub-body">
+                <div class="timer-display">05:00</div>
+                <button type="button" class="timer-btn" id="timer-start">Start</button>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- brightness overlay -->
+          <div class="brightness-veil" id="brightness-veil"></div>
+        </div>
+      </div>
+      <p class="stage-caption">410 × 502 · ESP32-S3 Touch AMOLED 2.06″</p>
+    </div>
+
+    <footer class="page-footer">
+      <p>Static demo · mouse or touch · no network required</p>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
