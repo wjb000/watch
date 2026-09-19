@@ -1,116 +1,219 @@
 /**
- * Nebula OS — browser watch simulator
- * Static, self-contained. Relative paths for GitHub Pages /watch/
+ * Nebula OS browser simulator
+ * Gestures & chrome mapped from firmware ui.cpp:
+ *   watch: swipe DOWN → Control, swipe UP → Launcher
+ *   Control: swipe UP → Watch (grab pill sheet)
+ *   Launcher: swipe DOWN (near top) → Watch
+ *   Pet: drag / tap react; vertical swipe yields after ~40px
+ *   Apps: back chevron 78×64, edge swipe back
  */
 (function () {
   "use strict";
 
   const screenEl = document.getElementById("watch-screen");
   const stack = document.getElementById("screen-stack");
-  const statusBar = document.getElementById("status-bar");
-  const brightnessVeil = document.getElementById("brightness-veil");
+  const veil = document.getElementById("brightness-veil");
   const nova = document.getElementById("nova");
-  const homeScreen = document.getElementById("screen-home");
+  const novaStage = document.getElementById("nova-stage");
 
-  let current = "home";
-  let navHistory = [];
-  let faceStyle = "classic";
-  let wifiOn = true;
-  let torchOn = false;
+  const state = {
+    screen: "home",
+    history: [],
+    face: "companion", // companion | time
+    wifi: true,
+    bt: false,
+    dnd: false,
+    sounds: true,
+    torch: false,
+    batt: 87,
+    bright: 62,
+    vol: 40,
+    hintHidden: false,
+  };
 
-  // --- Clock ---
-  function updateClock() {
+  /* ---------- clock ---------- */
+  function pad(n, w) {
+    return String(n).padStart(w || 2, "0");
+  }
+  function tickClock() {
     const now = new Date();
     const h = now.getHours();
     const m = now.getMinutes();
-    const timeStr = `${h}:${String(m).padStart(2, "0")}`;
-    const opts = { weekday: "short", month: "short", day: "numeric" };
-    const dateStr = now.toLocaleDateString("en-US", opts);
-
-    const homeTime = document.getElementById("home-time");
-    const homeDate = document.getElementById("home-date");
-    const ccTime = document.getElementById("cc-time");
-    const statusMini = document.getElementById("status-time-mini");
-
-    if (homeTime) homeTime.textContent = timeStr;
-    if (homeDate) homeDate.textContent = dateStr;
-    if (ccTime) ccTime.textContent = timeStr;
-    if (statusMini) statusMini.textContent = timeStr;
+    const s = now.getSeconds();
+    const time = h + ":" + pad(m);
+    const date = now.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const dateDot = now.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).replace(",", " ·");
+    setText("home-time", time);
+    setText("home-date", date);
+    setText("timeface-time", time);
+    setText("timeface-date", dateDot);
+    setText("timeface-sec", pad(s));
   }
-  updateClock();
-  setInterval(updateClock, 1000);
+  function setText(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
 
-  // Battery (cosmetic drift)
-  let batt = 87;
-  function setBattery(n) {
-    batt = Math.max(5, Math.min(100, n));
-    ["home-batt", "status-batt", "set-batt"].forEach((id) => {
+  function setBatt(n) {
+    state.batt = n;
+    ["home-batt", "cc-batt", "set-batt"].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = batt + "%";
+      if (el) el.textContent = n + "%";
     });
   }
-  setBattery(87);
+  setBatt(87);
 
-  // --- Navigation ---
-  function showStatusBar(show) {
-    statusBar.classList.toggle("visible", !!show && current !== "home" && current !== "cc");
+  /* ---------- navigation ---------- */
+  function $(sel, root) {
+    return (root || document).querySelector(sel);
+  }
+  function $all(sel, root) {
+    return Array.from((root || document).querySelectorAll(sel));
   }
 
-  function goTo(name, { push = true, fromSwipe = false } = {}) {
+  function showScreen(name, { push = true, anim } = {}) {
     const next = document.getElementById("screen-" + name);
     if (!next) return;
+    const prevName = state.screen;
+    const prev = document.getElementById("screen-" + prevName);
 
-    const prev = document.querySelector(".screen.active");
-    if (prev && prev !== next) {
-      prev.classList.remove("active");
+    if (push && prevName && prevName !== name) {
+      const sheetPair =
+        (prevName === "home" && (name === "cc" || name === "launcher")) ||
+        ((prevName === "cc" || prevName === "launcher") && name === "home");
+      if (!sheetPair) state.history.push(prevName);
     }
 
-    if (push && current && current !== name && !fromSwipe) {
-      // Don't push home→cc as deep history the same way
-      if (!(current === "home" && name === "cc") && !(current === "cc" && name === "home")) {
-        navHistory.push(current);
-      }
-    }
-
+    $all(".screen").forEach((s) => {
+      s.classList.remove("active", "slide-from-bottom", "slide-from-top");
+    });
     next.classList.add("active");
-    current = name;
-    showStatusBar(name !== "home" && name !== "cc" && name !== "launcher");
+    if (anim === "up") next.classList.add("slide-from-bottom");
+    if (anim === "down") next.classList.add("slide-from-top");
+    state.screen = name;
 
-    // Update torch overlay if leaving
-    syncTorch();
+    if (name === "torch") {
+      /* full white already via CSS */
+    }
+    syncWifiIcon();
   }
 
-  function goBack() {
-    if (navHistory.length) {
-      const prev = navHistory.pop();
-      goTo(prev, { push: false });
+  function goBack(fallback) {
+    if (state.history.length) {
+      showScreen(state.history.pop(), { push: false });
       return;
     }
-    if (current === "cc" || current === "launcher") {
-      goTo("home", { push: false });
-      return;
-    }
-    if (current !== "home") {
-      goTo("launcher", { push: false });
-    }
+    showScreen(fallback || "home", { push: false });
   }
 
-  // Back buttons
+  function openApp(name) {
+    if (name === "torch") {
+      showScreen("torch");
+      return;
+    }
+    showScreen(name);
+  }
+
+  /* ---------- face styles ---------- */
+  function applyFace(face) {
+    state.face = face;
+    const companion = document.getElementById("face-companion");
+    const timeFace = document.getElementById("face-time");
+    if (face === "time") {
+      companion.hidden = true;
+      timeFace.hidden = false;
+      const slot = document.getElementById("timeface-nova-slot");
+      if (slot && nova && !slot.contains(nova)) {
+        slot.appendChild(nova);
+        nova.style.position = "relative";
+        nova.style.left = "auto";
+        nova.style.top = "auto";
+        nova.style.margin = "0";
+        nova.style.transform = "";
+      }
+      timeFace.classList.add("face-time");
+    } else {
+      timeFace.hidden = true;
+      companion.hidden = false;
+      if (novaStage && nova && !novaStage.contains(nova)) {
+        novaStage.appendChild(nova);
+      }
+      nova.style.position = "absolute";
+      nova.style.left = "50%";
+      nova.style.top = "42%";
+      nova.style.marginLeft = "-60px";
+      nova.style.marginTop = "-70px";
+      nova.style.transform = "";
+      resetNovaHome();
+    }
+    $all(".face-card").forEach((c) => {
+      const on = c.getAttribute("data-face") === face;
+      c.classList.toggle("on", on);
+      const badge = c.querySelector(".face-on");
+      if (badge) badge.hidden = !on;
+    });
+  }
+
+  /* ---------- toggles / sliders ---------- */
+  function syncWifiIcon() {
+    const w = document.getElementById("home-wifi");
+    if (w) w.classList.toggle("off", !state.wifi);
+  }
+
+  function setSliderFill(input) {
+    const pct = ((input.value - input.min) / (input.max - input.min)) * 100;
+    input.style.setProperty("--pct", pct + "%");
+  }
+
+  const bright = document.getElementById("brightness");
+  const vol = document.getElementById("volume");
+  if (bright) {
+    setSliderFill(bright);
+    bright.addEventListener("input", () => {
+      state.bright = Number(bright.value);
+      setText("bright-val", state.bright + "%");
+      setSliderFill(bright);
+      veil.style.opacity = String(((100 - state.bright) / 100) * 0.55);
+    });
+    veil.style.opacity = String(((100 - state.bright) / 100) * 0.55);
+  }
+  if (vol) {
+    setSliderFill(vol);
+    vol.addEventListener("input", () => {
+      state.vol = Number(vol.value);
+      setText("vol-val", state.vol + "%");
+      setSliderFill(vol);
+    });
+  }
+
+  /* ---------- clicks ---------- */
   stack.addEventListener("click", (e) => {
     const back = e.target.closest("[data-back]");
     if (back) {
       e.preventDefault();
       const dest = back.getAttribute("data-back");
-      if (dest) goTo(dest, { push: false });
-      else goBack();
+      if (dest === "cc") showScreen("cc", { push: false });
+      else if (dest === "launcher") showScreen("launcher", { push: false });
+      else if (dest === "settings") showScreen("settings", { push: false });
+      else if (dest === "home") showScreen("home", { push: false });
+      else goBack(dest || "home");
       return;
     }
 
     const open = e.target.closest("[data-open]");
     if (open) {
       e.preventDefault();
-      const app = open.getAttribute("data-open");
-      goTo(app);
+      openApp(open.getAttribute("data-open"));
       return;
     }
 
@@ -118,280 +221,480 @@
     if (toggle) {
       e.preventDefault();
       const kind = toggle.getAttribute("data-toggle");
-      toggleTile(kind, toggle);
+      const on = !toggle.classList.contains("on");
+      toggle.classList.toggle("on", on);
+      toggle.setAttribute("aria-pressed", on ? "true" : "false");
+      if (kind === "wifi") {
+        state.wifi = on;
+        syncWifiIcon();
+      }
+      if (kind === "bt") state.bt = on;
+      if (kind === "dnd") state.dnd = on;
+      if (kind === "sounds") state.sounds = on;
+      return;
+    }
+
+    const faceBtn = e.target.closest("[data-face]");
+    if (faceBtn) {
+      applyFace(faceBtn.getAttribute("data-face"));
+      return;
     }
   });
 
-  function toggleTile(kind, btn) {
-    const on = !btn.classList.contains("on");
-    btn.classList.toggle("on", on);
-    btn.setAttribute("aria-pressed", on ? "true" : "false");
-
-    if (kind === "wifi") {
-      wifiOn = on;
-      document.querySelectorAll(".home-wifi, #icon-wifi").forEach((el) => {
-        el.classList.toggle("off", !wifiOn);
-      });
-    }
-    if (kind === "torch") {
-      torchOn = on;
-      syncTorch();
-    }
+  /* torch dismiss */
+  const torchScreen = document.getElementById("screen-torch");
+  if (torchScreen) {
+    torchScreen.addEventListener("click", (e) => {
+      if (e.target.closest(".back-hit")) return;
+      showScreen("cc", { push: false });
+    });
   }
 
-  function syncTorch() {
-    let flash = screenEl.querySelector(".torch-flash");
-    if (!flash) {
-      flash = document.createElement("div");
-      flash.className = "torch-flash";
-      screenEl.appendChild(flash);
-    }
-    flash.classList.toggle("on", torchOn && current === "cc");
-  }
-
-  // Brightness
-  const brightness = document.getElementById("brightness");
-  if (brightness) {
-    const applyBright = () => {
-      const v = Number(brightness.value);
-      // veil opacity inverse of brightness (20–100 → 0.35–0)
-      brightnessVeil.style.opacity = String((100 - v) / 100 * 0.45);
+  /* long-press time → Faces */
+  let longTimer = null;
+  ["home-time", "timeface-time"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("pointerdown", (e) => {
+      longTimer = setTimeout(() => {
+        longTimer = null;
+        showScreen("faces");
+      }, 550);
+    });
+    const clear = () => {
+      if (longTimer) {
+        clearTimeout(longTimer);
+        longTimer = null;
+      }
     };
-    brightness.addEventListener("input", applyBright);
-    applyBright();
-  }
+    el.addEventListener("pointerup", clear);
+    el.addEventListener("pointerleave", clear);
+    el.addEventListener("pointercancel", clear);
+  });
 
-  // --- Swipe gestures ---
-  let pointerDown = false;
-  let startY = 0;
-  let startX = 0;
-  let startT = 0;
-  let draggingNova = false;
-  let novaOrigin = { x: 0, y: 0 };
-  let novaOffset = { x: 0, y: 0 };
-  let moved = false;
+  /* ---------- Nova pet ---------- */
+  const PET_SLOP = 12;
+  const PET_YIELD = 40;
+  let pet = {
+    dragging: false,
+    press: false,
+    startX: 0,
+    startY: 0,
+    ox: 0,
+    oy: 0,
+    x: 0,
+    y: 0,
+    yielded: false,
+  };
 
-  function getPoint(e) {
-    if (e.touches && e.touches.length) {
-      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-    if (e.changedTouches && e.changedTouches.length) {
-      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-    }
-    return { x: e.clientX, y: e.clientY };
-  }
-
-  function onPointerStart(e) {
-    // Don't capture slider / button native handling badly — but allow swipe outside
-    if (e.target.closest("input, .switch, .slider-card input")) {
-      pointerDown = false;
-      return;
-    }
-
-    const p = getPoint(e);
-    pointerDown = true;
-    moved = false;
-    startX = p.x;
-    startY = p.y;
-    startT = Date.now();
-
-    const onNova = e.target.closest("#nova");
-    if (onNova && current === "home") {
-      draggingNova = true;
-      nova.classList.add("dragging");
-      novaOrigin = { x: novaOffset.x, y: novaOffset.y };
-      if (e.cancelable && e.type.startsWith("touch")) e.preventDefault();
+  function resetNovaHome() {
+    pet.x = 0;
+    pet.y = 0;
+    if (state.face === "companion" && nova) {
+      nova.style.transform = "translate(0px, 0px)";
     }
   }
 
-  function onPointerMove(e) {
-    if (!pointerDown) return;
-    const p = getPoint(e);
-    const dx = p.x - startX;
-    const dy = p.y - startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-
-    if (draggingNova) {
-      novaOffset.x = novaOrigin.x + dx;
-      novaOffset.y = novaOrigin.y + dy;
-      // soft clamp
-      const max = 40;
-      novaOffset.x = Math.max(-max, Math.min(max, novaOffset.x));
-      novaOffset.y = Math.max(-max, Math.min(max, novaOffset.y));
-      nova.style.transform = `translate(${novaOffset.x}px, ${novaOffset.y}px)`;
-      if (e.cancelable) e.preventDefault();
-      return;
-    }
-  }
-
-  function onPointerEnd(e) {
-    if (!pointerDown) return;
-    const p = getPoint(e);
-    const dx = p.x - startX;
-    const dy = p.y - startY;
-    const dt = Date.now() - startT;
-    pointerDown = false;
-
-    if (draggingNova) {
-      draggingNova = false;
-      nova.classList.remove("dragging");
-      // spring back
-      novaOffset = { x: 0, y: 0 };
-      nova.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
-      nova.style.transform = "translate(0, 0)";
-      setTimeout(() => {
-        nova.style.transition = "";
-      }, 360);
-
-      if (!moved || (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 350)) {
-        reactNova();
-      }
-      return;
-    }
-
-    // Vertical swipe
-    const absY = Math.abs(dy);
-    const absX = Math.abs(dx);
-    if (absY > 50 && absY > absX * 1.2) {
-      if (dy < 0) {
-        // swipe up
-        if (current === "home") goTo("cc", { fromSwipe: true });
-        else if (current === "cc") goTo("launcher", { fromSwipe: true });
-      } else {
-        // swipe down
-        if (current === "cc") goTo("home", { fromSwipe: true });
-        else if (current === "launcher") goTo("cc", { fromSwipe: true });
-      }
-    }
-  }
-
-  screenEl.addEventListener("mousedown", onPointerStart);
-  window.addEventListener("mousemove", onPointerMove);
-  window.addEventListener("mouseup", onPointerEnd);
-
-  screenEl.addEventListener("touchstart", onPointerStart, { passive: false });
-  screenEl.addEventListener("touchmove", onPointerMove, { passive: false });
-  screenEl.addEventListener("touchend", onPointerEnd);
-  screenEl.addEventListener("touchcancel", onPointerEnd);
-
-  function reactNova() {
+  function novaReact() {
+    if (!nova) return;
     nova.classList.add("react");
-    // brief happy eyes squash via CSS class
     setTimeout(() => nova.classList.remove("react"), 450);
   }
 
-  // --- Faces ---
-  document.querySelectorAll(".face-option").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".face-option").forEach((b) => b.classList.remove("selected"));
-      btn.classList.add("selected");
-      faceStyle = btn.getAttribute("data-face");
-      homeScreen.classList.toggle("face-minimal", faceStyle === "minimal");
-      const note = document.getElementById("faces-note");
-      if (note) {
-        note.textContent =
-          "Active: " + (faceStyle === "minimal" ? "Minimal Ring" : "Classic Nova");
-      }
+  if (nova) {
+    nova.addEventListener("pointerdown", (e) => {
+      if (state.screen !== "home" || state.face !== "companion") return;
+      e.stopPropagation();
+      pet.press = true;
+      pet.dragging = false;
+      pet.yielded = false;
+      pet.startX = e.clientX;
+      pet.startY = e.clientY;
+      pet.ox = pet.x;
+      pet.oy = pet.y;
+      nova.setPointerCapture(e.pointerId);
     });
-  });
-
-  // --- Talk mic ---
-  const micBtn = document.getElementById("mic-btn");
-  const talkPrompt = document.getElementById("talk-prompt");
-  const talkWave = document.getElementById("talk-waveform");
-  const talkTranscript = document.getElementById("talk-transcript");
-  let listening = false;
-  let listenTimer = null;
-
-  const phrases = [
-    "Hey Nova, what’s the time?",
-    "Set a timer for five minutes.",
-    "How’s the weather in Chicago?",
-    "Open Control Center.",
-    "Good morning, Nebula.",
-  ];
-
-  function startListen() {
-    if (listening) return;
-    listening = true;
-    micBtn.classList.add("listening");
-    talkWave.classList.add("active");
-    talkPrompt.textContent = "Listening…";
-    talkTranscript.textContent = "";
-  }
-
-  function stopListen() {
-    if (!listening) return;
-    listening = false;
-    micBtn.classList.remove("listening");
-    talkWave.classList.remove("active");
-    talkPrompt.textContent = "Hold to speak";
-    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    talkTranscript.textContent = "“" + phrase + "”";
-  }
-
-  if (micBtn) {
-    micBtn.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      startListen();
-    });
-    micBtn.addEventListener("mouseup", stopListen);
-    micBtn.addEventListener("mouseleave", () => {
-      if (listening) stopListen();
-    });
-    micBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      startListen();
-    }, { passive: false });
-    micBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      stopListen();
-    });
-  }
-
-  // Timer stub
-  const timerBtn = document.getElementById("timer-start");
-  const timerDisplay = document.querySelector(".timer-display");
-  let timerSecs = 300;
-  let timerId = null;
-
-  function fmtTimer(s) {
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
-  }
-
-  if (timerBtn && timerDisplay) {
-    timerBtn.addEventListener("click", () => {
-      if (timerId) {
-        clearInterval(timerId);
-        timerId = null;
-        timerBtn.textContent = "Start";
-        return;
-      }
-      timerBtn.textContent = "Pause";
-      timerId = setInterval(() => {
-        if (timerSecs <= 0) {
-          clearInterval(timerId);
-          timerId = null;
-          timerBtn.textContent = "Start";
-          timerSecs = 300;
-          timerDisplay.textContent = fmtTimer(timerSecs);
+    nova.addEventListener("pointermove", (e) => {
+      if (!pet.press || pet.yielded) return;
+      const dx = e.clientX - pet.startX;
+      const dy = e.clientY - pet.startY;
+      const dist = Math.hypot(dx, dy);
+      if (!pet.dragging && dist > PET_SLOP) {
+        // vertical swipe yield — let watch gesture win
+        if (Math.abs(dy) > Math.abs(dx) && dist > PET_YIELD) {
+          pet.yielded = true;
+          pet.press = false;
+          pet.dragging = false;
           return;
         }
-        timerSecs -= 1;
-        timerDisplay.textContent = fmtTimer(timerSecs);
+        if (Math.abs(dx) >= Math.abs(dy) || dist > PET_YIELD) {
+          pet.dragging = true;
+        }
+      }
+      if (pet.dragging) {
+        pet.x = pet.ox + dx;
+        pet.y = pet.oy + dy;
+        // clamp loosely to screen
+        pet.x = Math.max(-140, Math.min(140, pet.x));
+        pet.y = Math.max(-120, Math.min(160, pet.y));
+        nova.style.transform = "translate(" + pet.x + "px," + pet.y + "px)";
+      }
+    });
+    nova.addEventListener("pointerup", (e) => {
+      if (!pet.press && !pet.dragging) return;
+      const wasDrag = pet.dragging;
+      pet.press = false;
+      pet.dragging = false;
+      if (!wasDrag && !pet.yielded) {
+        novaReact();
+        // poke → Talk (firmware opens AI)
+        setTimeout(() => showScreen("talk"), 180);
+      } else if (wasDrag) {
+        // soft settle toward home
+        const settle = () => {
+          pet.x *= 0.82;
+          pet.y *= 0.82;
+          if (Math.hypot(pet.x, pet.y) < 4) {
+            resetNovaHome();
+            return;
+          }
+          nova.style.transform = "translate(" + pet.x + "px," + pet.y + "px)";
+          requestAnimationFrame(settle);
+        };
+        requestAnimationFrame(settle);
+        novaReact();
+      }
+    });
+  }
+
+  /* ---------- swipe gestures ---------- */
+  let gesture = {
+    down: false,
+    x0: 0,
+    y0: 0,
+    t0: 0,
+    ignore: false,
+  };
+
+  function pt(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0])
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e) {
+    if (e.target.closest("input, .sheet-slider, .switch, .calc-grid, .talk-actions, .timer-actions")) {
+      gesture.ignore = true;
+      gesture.down = false;
+      return;
+    }
+    if (e.target.closest("#nova") && state.screen === "home" && state.face === "companion") {
+      // pet handler owns this unless it yields
+      gesture.ignore = false;
+    }
+    const p = pt(e);
+    gesture.down = true;
+    gesture.ignore = false;
+    gesture.x0 = p.x;
+    gesture.y0 = p.y;
+    gesture.t0 = Date.now();
+  }
+
+  function onEnd(e) {
+    if (!gesture.down || gesture.ignore) {
+      gesture.down = false;
+      return;
+    }
+    gesture.down = false;
+    if (pet.dragging) return;
+
+    const p = pt(e);
+    const dx = p.x - gesture.x0;
+    const dy = p.y - gesture.y0;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    const dt = Date.now() - gesture.t0;
+    const SWIPE = 48;
+
+    // left-edge back on apps
+    if (
+      state.screen !== "home" &&
+      state.screen !== "cc" &&
+      state.screen !== "launcher" &&
+      gesture.x0 - screenEl.getBoundingClientRect().left < 28 &&
+      dx > 56 &&
+      adx > ady
+    ) {
+      const backBtn = $(".screen.active [data-back]");
+      const dest = backBtn ? backBtn.getAttribute("data-back") : "launcher";
+      if (dest === "cc") showScreen("cc", { push: false });
+      else if (dest === "launcher") showScreen("launcher", { push: false });
+      else if (dest === "settings") showScreen("settings", { push: false });
+      else showScreen(dest || "home", { push: false });
+      return;
+    }
+
+    if (ady < SWIPE || ady < adx * 1.15) return;
+    if (dt > 900) return;
+
+    hideHint();
+
+    if (state.screen === "home") {
+      if (dy > 0) {
+        // swipe down → Control (firmware watchGesture BOTTOM)
+        showScreen("cc", { push: false, anim: "down" });
+      } else {
+        // swipe up → Launcher
+        showScreen("launcher", { push: false, anim: "up" });
+      }
+      return;
+    }
+    if (state.screen === "cc") {
+      if (dy < 0) {
+        // swipe up dismiss
+        showScreen("home", { push: false, anim: "up" });
+      }
+      return;
+    }
+    if (state.screen === "launcher") {
+      const grid = document.getElementById("launcher-grid");
+      const scrollTop = grid ? grid.scrollTop : 0;
+      if (dy > 0 && scrollTop <= 12) {
+        showScreen("home", { push: false, anim: "down" });
+      }
+      return;
+    }
+  }
+
+  function hideHint() {
+    if (state.hintHidden) return;
+    state.hintHidden = true;
+    const h = document.getElementById("home-hint");
+    if (h) h.classList.add("hidden");
+  }
+
+  screenEl.addEventListener("pointerdown", onStart, { passive: true });
+  screenEl.addEventListener("pointerup", onEnd, { passive: true });
+  screenEl.addEventListener("pointercancel", () => {
+    gesture.down = false;
+  });
+
+  /* ---------- Talk mock ---------- */
+  const replies = [
+    "Got it, boss.",
+    "On it.",
+    "Battery’s fine — want a timer?",
+    "Nice swipe. Control is down, apps are up.",
+    "I’m just a sim here, but the real Nova talks on-device.",
+  ];
+  let talkBusy = false;
+  const talkBtn = document.getElementById("talk-btn");
+  const callBtn = document.getElementById("call-btn");
+  const talkLog = document.getElementById("talk-log");
+  const talkStatus = document.getElementById("talk-status");
+
+  function addBubble(text, who) {
+    const d = document.createElement("div");
+    d.className = "bubble " + who;
+    d.textContent = text;
+    talkLog.appendChild(d);
+    talkLog.scrollTop = talkLog.scrollHeight;
+  }
+
+  if (talkBtn) {
+    talkBtn.addEventListener("click", () => {
+      if (talkBusy) return;
+      talkBusy = true;
+      talkStatus.textContent = "Listening…";
+      addBubble("Hey Nova", "me");
+      setTimeout(() => {
+        talkStatus.textContent = "Thinking…";
+        setTimeout(() => {
+          const r = replies[Math.floor(Math.random() * replies.length)];
+          addBubble(r, "bot");
+          talkStatus.textContent = "Ready, boss";
+          talkBusy = false;
+        }, 700);
+      }, 900);
+    });
+  }
+  if (callBtn) {
+    callBtn.addEventListener("click", () => {
+      talkStatus.textContent = "In call (mock)";
+      addBubble("Call loop would listen here — sim only.", "bot");
+    });
+  }
+
+  /* ---------- Timer ---------- */
+  let timerLeft = 300;
+  let timerIv = null;
+  function renderTimer() {
+    const m = Math.floor(timerLeft / 60);
+    const s = timerLeft % 60;
+    setText("timer-display", pad(m) + ":" + pad(s));
+  }
+  renderTimer();
+  $all("[data-timer]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      $all("[data-timer]").forEach((b) => b.classList.remove("on"));
+      btn.classList.add("on");
+      timerLeft = Number(btn.getAttribute("data-timer"));
+      if (timerIv) {
+        clearInterval(timerIv);
+        timerIv = null;
+        document.getElementById("timer-start").textContent = "Start";
+      }
+      renderTimer();
+    });
+  });
+  const timerStart = document.getElementById("timer-start");
+  if (timerStart) {
+    timerStart.addEventListener("click", () => {
+      if (timerIv) {
+        clearInterval(timerIv);
+        timerIv = null;
+        timerStart.textContent = "Start";
+        return;
+      }
+      timerStart.textContent = "Pause";
+      timerIv = setInterval(() => {
+        if (timerLeft <= 0) {
+          clearInterval(timerIv);
+          timerIv = null;
+          timerStart.textContent = "Start";
+          return;
+        }
+        timerLeft -= 1;
+        renderTimer();
       }, 1000);
     });
   }
+  const timerReset = document.getElementById("timer-reset");
+  if (timerReset) {
+    timerReset.addEventListener("click", () => {
+      if (timerIv) clearInterval(timerIv);
+      timerIv = null;
+      const on = document.querySelector("[data-timer].on");
+      timerLeft = on ? Number(on.getAttribute("data-timer")) : 300;
+      renderTimer();
+      if (timerStart) timerStart.textContent = "Start";
+    });
+  }
 
-  // Keyboard helpers for demo
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") goBack();
-    if (e.key === "ArrowUp" && current === "home") goTo("cc", { fromSwipe: true });
-    if (e.key === "ArrowDown" && current === "cc") goTo("home", { fromSwipe: true });
-  });
+  /* ---------- Stopwatch ---------- */
+  let swT0 = 0;
+  let swAcc = 0;
+  let swIv = null;
+  let swRunning = false;
+  let lapN = 0;
+  function renderSw() {
+    const t = swAcc + (swRunning ? performance.now() - swT0 : 0);
+    const cs = Math.floor(t / 10) % 100;
+    const s = Math.floor(t / 1000) % 60;
+    const m = Math.floor(t / 60000);
+    setText("sw-display", pad(m) + ":" + pad(s) + "." + pad(cs));
+  }
+  const swStart = document.getElementById("sw-start");
+  const swLap = document.getElementById("sw-lap");
+  if (swStart) {
+    swStart.addEventListener("click", () => {
+      if (!swRunning) {
+        swRunning = true;
+        swT0 = performance.now();
+        swStart.textContent = "Stop";
+        swIv = setInterval(renderSw, 32);
+      } else {
+        swAcc += performance.now() - swT0;
+        swRunning = false;
+        clearInterval(swIv);
+        swStart.textContent = "Start";
+        renderSw();
+      }
+    });
+  }
+  if (swLap) {
+    swLap.addEventListener("click", () => {
+      if (!swRunning && swAcc === 0) {
+        swAcc = 0;
+        lapN = 0;
+        document.getElementById("lap-list").innerHTML = "";
+        renderSw();
+        return;
+      }
+      lapN += 1;
+      const li = document.createElement("li");
+      const t = swAcc + (swRunning ? performance.now() - swT0 : 0);
+      const cs = Math.floor(t / 10) % 100;
+      const s = Math.floor(t / 1000) % 60;
+      const m = Math.floor(t / 60000);
+      li.innerHTML = "<span>Lap " + lapN + "</span><span>" + pad(m) + ":" + pad(s) + "." + pad(cs) + "</span>";
+      document.getElementById("lap-list").prepend(li);
+    });
+  }
 
-  // Start on home
-  goTo("home", { push: false });
+  /* ---------- Calc ---------- */
+  let calcStr = "0";
+  const calcDisp = document.getElementById("calc-display");
+  const calcGrid = document.getElementById("calc-grid");
+  function setCalc(v) {
+    calcStr = v;
+    if (calcDisp) calcDisp.textContent = v.length > 12 ? v.slice(0, 12) : v;
+  }
+  if (calcGrid) {
+    calcGrid.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-k]");
+      if (!b) return;
+      const k = b.getAttribute("data-k");
+      if (k === "C") return setCalc("0");
+      if (k === "±") {
+        if (calcStr.startsWith("-")) setCalc(calcStr.slice(1));
+        else if (calcStr !== "0") setCalc("-" + calcStr);
+        return;
+      }
+      if (k === "=") {
+        try {
+          const expr = calcStr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+          // eslint-disable-next-line no-new-func
+          const v = Function('"use strict"; return (' + expr.replace(/[^0-9+\-*/().%\s]/g, "") + ")")();
+          setCalc(String(Number.isFinite(v) ? +parseFloat(v.toFixed(8)) : "Err"));
+        } catch (_) {
+          setCalc("Err");
+        }
+        return;
+      }
+      if (k === "%" && calcStr !== "0") {
+        setCalc(String(parseFloat(calcStr) / 100));
+        return;
+      }
+      const map = { "/": "÷", "*": "×", "-": "−", "+": "+" };
+      const ch = map[k] || k;
+      if ("+-×÷−".includes(ch) || "+-*/".includes(k)) {
+        setCalc((calcStr === "Err" ? "0" : calcStr) + ch);
+        return;
+      }
+      if (calcStr === "0" || calcStr === "Err") setCalc(ch);
+      else setCalc(calcStr + ch);
+    });
+  }
+
+  /* ---------- sensors jitter ---------- */
+  setInterval(() => {
+    if (state.screen !== "sensors") return;
+    const a = (0.02 + Math.random() * 0.03).toFixed(2);
+    const b = (0.01 + Math.random() * 0.02).toFixed(2);
+    setText("sns-a", a + " · " + b + " · 1.00 g");
+    setText(
+      "sns-g",
+      (Math.random() * 0.2 - 0.1).toFixed(1) +
+        " · " +
+        (Math.random() * 0.2 - 0.1).toFixed(1) +
+        " · " +
+        (Math.random() * 0.2 - 0.1).toFixed(1)
+    );
+  }, 800);
+
+  /* ---------- init ---------- */
+  applyFace("companion");
+  syncWifiIcon();
 })();
